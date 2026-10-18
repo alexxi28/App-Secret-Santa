@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secret Santa</title>
+<style>
+  :root {
+    --bg: #f6f1ea;
+    --card: #ffffff;
+    --text: #2b2320;
+    --muted: #7a6d66;
+    --line: #e6ddd3;
+    --red: #b3261e;
+    --red-dark: #8c1d17;
+    --green: #1f7a4d;
+    --green-soft: #e3f3ea;
+    --whatsapp: #1fa855;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1715;
+      --card: #262120;
+      --text: #f2ece6;
+      --muted: #ab9f97;
+      --line: #3b3431;
+      --red: #e2574c;
+      --red-dark: #c4443a;
+      --green: #4cc28a;
+      --green-soft: #1f3a2d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { margin: 0; font-size: 2rem; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 12px; font-size: 1.15rem; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 0 0 12px; }
+  .row { display: grid; grid-template-columns: 28px 1fr 1.3fr 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row .nr { color: var(--muted); text-align: right; font-size: .9rem; }
+  input, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--red); outline-offset: 0; border-color: transparent; }
+  input.bad { border-color: var(--red); }
+  button, .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px;
+    font: inherit; font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  button:hover, .btn:hover { filter: brightness(.96); }
+  .remove { width: 40px; height: 40px; padding: 0; font-size: 1.2rem; color: var(--muted); }
+  .primary { background: var(--red); border-color: var(--red); color: #fff; width: 100%; padding: 14px; font-size: 1.1rem; }
+  .primary:hover { background: var(--red-dark); }
+  .primary:disabled { opacity: .6; cursor: wait; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label span { display: block; font-size: .9rem; color: var(--muted); margin-bottom: 4px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin-top: 12px; }
+  details textarea { margin-top: 8px; min-height: 110px; }
+  .error { background: #fde8e6; color: #8c1d17; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: none; }
+  .error.show { display: block; }
+  .saved { background: var(--green-soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: .95rem; word-break: break-all; }
+  .progress { font-weight: 600; margin-bottom: 12px; }
+  .person {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 10px;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  }
+  .person.done { background: var(--green-soft); border-color: transparent; }
+  .person .who strong { display: block; }
+  .person .who small { color: var(--muted); }
+  .person .send { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .wa { background: var(--whatsapp); border-color: var(--whatsapp); color: #fff; }
+  .check { color: var(--green); font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: .9rem; }
+  .hidden { display: none !important; }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr 40px; }
+    .row .nr { display: none; }
+    .row .contact { grid-column: 1; }
+    .row .remove { grid-row: 1 / span 2; grid-column: 2; }
+    .row { padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+    .two { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🎅 Secret Santa</h1>
+    <p>Bagi numele, tragi la sorți și îi trimiți fiecăruia perechea lui.</p>
+  </header>
+
+  <section id="setup">
+    <div class="card">
+      <h2>Participanți</h2>
+      <p class="hint">Pentru fiecare: numele și un număr de telefon (pentru WhatsApp/SMS) sau o adresă de email.</p>
+      <div id="rows"></div>
+      <div class="actions">
+        <button type="button" id="add">+ Adaugă participant</button>
+      </div>
+      <details>
+        <summary>Ai deja lista? Lipește-o aici</summary>
+        <textarea id="paste" placeholder="Ana, 0722 123 456&#10;Mihai, mihai@exemplu.ro&#10;Ioana, 0733 111 222"></textarea>
+        <div class="actions"><button type="button" id="import">Adaugă din listă</button></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Detalii (opțional)</h2>
+      <div class="two">
+        <label><span>Buget cadou</span><input id="buget" placeholder="ex. 100 lei"></label>
+        <label><span>Data schimbului de cadouri</span><input id="data" placeholder="ex. 24 decembrie"></label>
+      </div>
+    </div>
+
+    <div class="error" id="error"></div>
+    <button class="primary" id="draw">🎲 Trage la sorți</button>
+  </section>
+
+  <section id="results" class="hidden">
+    <div class="card">
+      <h2>Trimite mesajele</h2>
+      <div class="saved" id="saved"></div>
+      <p class="hint">Apasă butonul de lângă fiecare persoană. Se deschide WhatsApp, SMS-ul sau emailul cu mesajul deja scris, iar tu doar apeși „Trimite”.</p>
+      <div class="progress" id="progress"></div>
+      <div id="people"></div>
+    </div>
+
+    <div class="card">
+      <h2>Lista ta cu perechile</h2>
+      <p class="hint">E ascunsă, ca să nu o vezi din greșeală dacă participi și tu.</p>
+      <div class="actions">
+        <button type="button" id="toggle">👀 Arată perechile</button>
+        <button type="button" id="download">⬇️ Descarcă lista (CSV)</button>
+      </div>
+      <table id="pairs" class="hidden">
+        <thead><tr><th>Cine face cadou</th><th>Cui îi face cadou</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <button type="button" id="reset">↺ Tragere nouă</button>
+  </section>
+</main>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const STORE = "secret-santa";
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; }
+}
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify({
+      participanti: readRows(), buget: $("#buget").value, data: $("#data").value,
+      rezultat: state.result, trimise: [...state.sent],
+    }));
+  } catch { /* fara localStorage, doar nu tinem minte */ }
+}
+
+const state = { result: null, sent: new Set() };
+
+// ---------- participanti ----------
+function addRow(nume = "", contact = "", focus = false) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.innerHTML = `
+    <span class="nr"></span>
+    <input class="nume" placeholder="Nume" autocomplete="off">
+    <input class="contact" placeholder="Telefon sau email" autocomplete="off">
+    <button type="button" class="remove" title="Șterge">×</button>`;
+  row.querySelector(".nume").value = nume;
+  row.querySelector(".contact").value = contact;
+  row.querySelector(".remove").onclick = () => {
+    row.remove();
+    if (!$("#rows").children.length) addRow();
+    renumber(); save();
+  };
+  row.querySelector(".contact").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const next = row.nextElementSibling;
+      if (next) next.querySelector(".nume").focus(); else addRow("", "", true);
+    }
+  });
+  row.querySelector(".nume").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); row.querySelector(".contact").focus(); }
+  });
+  row.addEventListener("input", (e) => { e.target.classList.remove("bad"); save(); });
+  $("#rows").appendChild(row);
+  renumber();
+  if (focus) row.querySelector(".nume").focus();
+}
+function renumber() {
+  [...$("#rows").children].forEach((r, i) => r.querySelector(".nr").textContent = i + 1 + ".");
+}
+function readRows() {
+  return [...$("#rows").children].map((r) => ({
+    nume: r.querySelector(".nume").value.trim(),
+    contact: r.querySelector(".contact").value.trim(),
+  }));
+}
+function importPaste() {
+  const lines = $("#paste").value.split("\n").map((l) => l.trim()).filter(Boolean);
+  const empty = [...$("#rows").children].filter((r) =>
+    !r.querySelector(".nume").value && !r.querySelector(".contact").value);
+  empty.forEach((r) => r.remove());
+  for (const line of lines) {
+    const m = line.match(/^(.*?)[,;\t]\s*(.+)$/) || line.match(/^(.*\S)\s+(\S+@\S+|\+?[\d\s\-().]{8,})$/);
+    if (m) addRow(m[1].trim(), m[2].trim()); else addRow(line, "");
+  }
+  if (!$("#rows").children.length) addRow();
+  $("#paste").value = "";
+  save();
+}
+
+// ---------- validare simpla (serverul verifica din nou) ----------
+function checkContact(c) {
+  if (c.includes("@")) return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c);
+  const digits = c.replace(/[\s\-().]/g, "");
+  return /^(\+|00|0)\d{7,15}$/.test(digits);
+}
+function showError(msg) { $("#error").textContent = msg; $("#error").classList.add("show"); }
+function clearError() { $("#error").classList.remove("show"); }
+
+async function draw() {
+  clearError();
+  const rows = [...$("#rows").children];
+  let firstBad = null;
+  const participanti = [];
+  for (const r of rows) {
+    const nume = r.querySelector(".nume"), contact = r.querySelector(".contact");
+    if (!nume.value.trim() && !contact.value.trim()) continue;
+    if (!nume.value.trim()) { nume.classList.add("bad"); firstBad ??= nume; }
+    if (!checkContact(contact.value.trim())) { contact.classList.add("bad"); firstBad ??= contact; }
+    participanti.push({ nume: nume.value.trim(), contact: contact.value.trim() });
+  }
+  if (firstBad) {
+    showError("Verifică câmpurile marcate cu roșu: fiecare trebuie să aibă nume și un telefon/email valid.");
+    firstBad.focus();
+    return;
+  }
+  if (participanti.length < 3) { showError("Ai nevoie de cel puțin 3 participanți."); return; }
+
+  $("#draw").disabled = true;
+  try {
+    const res = await fetch("/api/trage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participanti, buget: $("#buget").value, data: $("#data").value }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.eroare || "Ceva n-a mers."); return; }
+    state.result = data;
+    state.sent = new Set();
+    save();
+    showResults();
+  } catch {
+    showError("Nu pot vorbi cu serverul. Verifică dacă mai rulează `python app.py`.");
+  } finally {
+    $("#draw").disabled = false;
+  }
+}
+
+// ---------- rezultate ----------
+function showResults() {
+  const { perechi, fisier } = state.result;
+  $("#setup").classList.add("hidden");
+  $("#results").classList.remove("hidden");
+  $("#saved").textContent = `✅ Lista completă a fost salvată pe calculator în: ${fisier}`;
+
+  const box = $("#people");
+  box.innerHTML = "";
+  perechi.forEach((p, i) => {
+    const el = document.createElement("div");
+    el.className = "person";
+    el.innerHTML = `<div class="who"><strong></strong><small></small></div><div class="send"></div>`;
+    el.querySelector("strong").textContent = p.nume;
+    el.querySelector("small").textContent = p.contact;
+    const send = el.querySelector(".send");
+    const buttons = [
+      ["whatsapp", "WhatsApp", "btn wa"],
+      ["sms", "SMS", "btn"],
+      ["email", "✉️ Email", "btn"],
+    ];
+    for (const [key, label, cls] of buttons) {
+      if (!p.linkuri[key]) continue;
+      const a = document.createElement("a");
+      a.className = cls;
+      a.href = p.linkuri[key];
+      a.textContent = label;
+      if (key === "whatsapp") a.target = "_blank";
+      a.onclick = () => markSent(i);
+      send.appendChild(a);
+    }
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "📋 Copiază";
+    copy.title = "Copiază mesajul ca să-l trimiți altfel";
+    copy.onclick = async () => {
+      try { await navigator.clipboard.writeText(p.mesaj); copy.textContent = "Copiat!"; }
+      catch { prompt("Copiază mesajul:", p.mesaj); }
+      markSent(i);
+      setTimeout(() => copy.textContent = "📋 Copiază", 1500);
+    };
+    send.appendChild(copy);
+    const done = document.createElement("label");
+    done.className = "check";
+    done.innerHTML = `<input type="checkbox" style="width:auto"> trimis`;
+    const cb = done.querySelector("input");
+    cb.checked = state.sent.has(i);
+    cb.onchange = () => { cb.checked ? state.sent.add(i) : state.sent.delete(i); refresh(); };
+    send.appendChild(done);
+    box.appendChild(el);
+  });
+
+  const tbody = $("#pairs tbody");
+  tbody.innerHTML = "";
+  for (const p of perechi) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td></td><td></td>";
+    tr.children[0].textContent = p.nume;
+    tr.children[1].textContent = "🎁 " + p.primeste;
+    tbody.appendChild(tr);
+  }
+  refresh();
+}
+function markSent(i) { state.sent.add(i); refresh(); }
+function refresh() {
+  const people = [...$("#people").children];
+  people.forEach((el, i) => {
+    el.classList.toggle("done", state.sent.has(i));
+    el.querySelector(".check input").checked = state.sent.has(i);
+  });
+  const total = state.result.perechi.length;
+  $("#progress").textContent = state.sent.size === total
+    ? `🎉 Gata! Toți cei ${total} au primit mesajul.`
+    : `Trimise: ${state.sent.size} din ${total}`;
+  save();
+}
+function downloadCsv() {
+  const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = [["ofera_cadou", "contact", "primeste_cadou", "mesaj"].join(",")];
+  for (const p of state.result.perechi) lines.push([p.nume, p.contact, p.primeste, p.mesaj].map(esc).join(","));
+  const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "secret-santa-perechi.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ---------- pornire ----------
+$("#add").onclick = () => addRow("", "", true);
+$("#import").onclick = importPaste;
+$("#draw").onclick = draw;
+$("#buget").oninput = $("#data").oninput = save;
+$("#download").onclick = downloadCsv;
+$("#toggle").onclick = () => {
+  const hidden = $("#pairs").classList.toggle("hidden");
+  $("#toggle").textContent = hidden ? "👀 Arată perechile" : "🙈 Ascunde perechile";
+};
+$("#reset").onclick = () => {
+  if (!confirm("Sigur faci o tragere nouă? Perechile de acum nu mai sunt valabile.")) return;
+  state.result = null;
+  state.sent = new Set();
+  $("#results").classList.add("hidden");
+  $("#setup").classList.remove("hidden");
+  $("#pairs").classList.add("hidden");
+  $("#toggle").textContent = "👀 Arată perechile";
+  save();
+};
+
+const saved = load();
+(saved.participanti && saved.participanti.length ? saved.participanti : [{}, {}, {}])
+  .forEach((p) => addRow(p.nume || "", p.contact || ""));
+$("#buget").value = saved.buget || "";
+$("#data").value = saved.data || "";
+if (saved.rezultat) {
+  state.result = saved.rezultat;
+  state.sent = new Set(saved.trimise || []);
+  showResults();
+}
+</script>
+</body>
+</html>
