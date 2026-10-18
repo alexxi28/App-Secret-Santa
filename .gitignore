@@ -1,0 +1,5 @@
+.env
+participanti.csv
+rezultate/
+__pycache__/
+*.pyc
